@@ -5,7 +5,7 @@ import { useMemo } from "react";
 
 // Memoized path configurations to prevent recalculation
 const PATH_CONFIG = {
-  COUNT: 36,
+  COUNT: 16, 
   BASE_WIDTH: 0.5,
   WIDTH_INCREMENT: 0.03,
   BASE_OPACITY: 0.1,
@@ -28,6 +28,23 @@ const STATIC_ANIMATION_PROPS = {
   },
 };
 
+// Define a single gradient outside the component if all paths can share it
+// This reduces the number of <linearGradient> elements in the SVG <defs>
+const SHARED_GRADIENT_ID = "shared-floating-path-gradient";
+const SharedGradient = (
+  <linearGradient
+    key={SHARED_GRADIENT_ID}
+    id={SHARED_GRADIENT_ID}
+    x1="0%"
+    y1="0%"
+    x2="100%"
+    y2="0%"
+  >
+    <stop offset="25%" stopColor="rgb(147, 51, 234)" />
+    <stop offset="75%" stopColor="rgb(59, 130, 246)" />
+  </linearGradient>
+);
+
 function FloatingPaths({ position }: { position: number }) {
   const paths = useMemo(() => {
     return Array.from({ length: PATH_CONFIG.COUNT }, (_, i) => {
@@ -43,7 +60,8 @@ function FloatingPaths({ position }: { position: number }) {
     S ${684 - xOffset} ${875 - yOffset},
       ${684 - xOffset} ${875 - yOffset}`,
 
-        gradientId: `gradient-${position}-${i}`,
+        // All paths will now use the same shared gradient
+        gradientId: SHARED_GRADIENT_ID,
         width: PATH_CONFIG.BASE_WIDTH + i * PATH_CONFIG.WIDTH_INCREMENT,
         opacity: PATH_CONFIG.BASE_OPACITY + i * PATH_CONFIG.OPACITY_INCREMENT,
         duration: PATH_CONFIG.BASE_DURATION + Math.random() * PATH_CONFIG.DURATION_VARIANCE,
@@ -51,21 +69,8 @@ function FloatingPaths({ position }: { position: number }) {
     });
   }, [position]);
 
-  const gradients = useMemo(() => {
-    return paths.map((path) => (
-      <linearGradient
-        key={path.gradientId}
-        id={path.gradientId}
-        x1="0%"
-        y1="0%"
-        x2="100%"
-        y2="0%"
-      >
-        <stop offset="25%" stopColor="rgb(147, 51, 234)" />
-        <stop offset="75%" stopColor="rgb(59, 130, 246)" />
-      </linearGradient>
-    ));
-  }, [paths]);
+  // Gradients are no longer dynamically generated per path, reducing memoization overhead
+  // and DOM elements. Only the shared gradient is rendered once.
 
   return (
     <div className="absolute inset-0 pointer-events-none will-change-transform">
@@ -75,7 +80,7 @@ function FloatingPaths({ position }: { position: number }) {
         fill="none"
         style={{ transform: 'translateZ(0)' }} // Force GPU acceleration
       >
-        <defs>{gradients}</defs>
+        <defs>{SharedGradient}</defs>
         <title>Background Paths</title>
         {paths.map((path) => (
           <motion.path
@@ -106,3 +111,4 @@ export function BackgroundPaths() {
     </div>
   );
 }
+
